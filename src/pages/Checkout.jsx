@@ -12,6 +12,7 @@ import {
   Terminal,
   Server,
 } from 'lucide-react'
+import { PayPalButtons } from "@paypal/react-paypal-js"
 
 const serviceOptions = [
   { id: 'discord-scraping', icon: Bot, name: 'Discord Scraping', tiers: [
@@ -48,9 +49,33 @@ export default function Checkout() {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    // Demo: In production, this would redirect to Stripe Checkout
-    setSubmitted(true)
+    if (!form.name || !form.email || !form.details) {
+      alert("Please fill your details first.");
+    }
   }
+
+  const handleCreateOrder = (data, actions) => {
+    const priceStr = selectedServiceData?.tiers.find(t => t.name === selectedTier)?.price.toString() || "0";
+    return actions.order.create({
+      intent: "CAPTURE",
+      purchase_units: [
+        {
+          description: `Order: ${selectedServiceData?.name} (${selectedTier})`,
+          amount: {
+            currency_code: "USD",
+            value: priceStr,
+          },
+        },
+      ],
+    });
+  };
+
+  const handleApprove = (data, actions) => {
+    return actions.order.capture().then((details) => {
+      // Logic when payment is captured successfully
+      setSubmitted(true);
+    });
+  };
 
   const selectedServiceData = serviceOptions.find(s => s.id === selectedService)
   const selectedTierData = selectedServiceData?.tiers.find(t => t.name === selectedTier)
@@ -233,11 +258,23 @@ export default function Checkout() {
                         required
                       />
                     </div>
-                    <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%' }}>
-                      <CreditCard size={18} /> Pay ${selectedTierData?.price} — Place Order
-                    </button>
+                    
+                    {!form.name || !form.email || !form.details ? (
+                      <button type="submit" className="btn btn-primary btn-lg" style={{ width: '100%', opacity: 0.5 }}>
+                        <CreditCard size={18} /> Fill Details to Pay ${selectedTierData?.price}
+                      </button>
+                    ) : (
+                      <div style={{ marginTop: '0.5rem', zIndex: 0, position: 'relative' }}>
+                        <PayPalButtons 
+                          style={{ layout: "vertical", color: "blue", shape: "rect", label: "pay" }}
+                          createOrder={handleCreateOrder}
+                          onApprove={handleApprove}
+                        />
+                      </div>
+                    )}
+                    
                     <p className="checkout-form__note">
-                      <Shield size={12} /> Secure payment via Stripe. 100% money-back guarantee.
+                      <Shield size={12} /> Secure payment via PayPal. 100% money-back guarantee.
                     </p>
                   </form>
                 </motion.div>
@@ -303,7 +340,7 @@ export default function Checkout() {
                   </div>
                   <div className="checkout-summary__trust-item">
                     <CreditCard size={14} />
-                    <span>Stripe Protected</span>
+                    <span>PayPal Protected</span>
                   </div>
                 </div>
               </div>
